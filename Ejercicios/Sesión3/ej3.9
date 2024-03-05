@@ -1,1 +1,40 @@
+const int sensorTemperaturaPin = A0; // Pin analógico para el sensor de temperatura
+const int ledAzul = 3; // Pin digital para el LED azul
+const int ledVerde = 4; // Pin digital para el LED verde
+const int ledRojo = 5; // Pin digital para el LED rojo
 
+void setup() {
+  pinMode(sensorTemperaturaPin, INPUT);
+  pinMode(ledAzul, OUTPUT);
+  pinMode(ledVerde, OUTPUT);
+  pinMode(ledRojo, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  float temperatura = leerTemperatura(); // Leer temperatura del sensor
+  
+  if (temperatura < 0) {
+    encenderLed(ledAzul); // Encender LED azul si la temperatura está por debajo de 0°C
+  } else if (temperatura > 40) {
+    encenderLed(ledRojo); // Encender LED rojo si la temperatura está por encima de 40°C
+  } else {
+    encenderLed(ledVerde); // Encender LED verde si la temperatura está entre 0°C y 40°C
+  }
+  
+  delay(1000); // Esperar 1 segundo antes de tomar otra muestra
+}
+
+float leerTemperatura() {
+  int lectura = analogRead(sensorTemperaturaPin); // Leer valor del sensor
+  // Convertir valor a temperatura en grados Celsius (valor específico depende del sensor)
+  float temperaturaCelsius = (lectura * 5.0 / 1024.0 - 0.5) * 100.0;
+  return temperaturaCelsius;
+}
+
+void encenderLed(int pin) {
+  digitalWrite(ledAzul, LOW); // Apagar LED azul
+  digitalWrite(ledVerde, LOW); // Apagar LED verde
+  digitalWrite(ledRojo, LOW); // Apagar LED rojo
+  digitalWrite(pin, HIGH); // Encender LED correspondiente al pin proporcionado
+}
