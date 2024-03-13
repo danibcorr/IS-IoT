@@ -119,12 +119,15 @@ const int duracion[] = {
 };
 
 // ------------ Tipos ------------
-struct Boton {
+struct Boton 
+{
     byte pin;
     byte estado;
     unsigned long cambio_ms;
 };
-struct Zumbador {
+
+struct Zumbador 
+{
     byte pin;
     byte estado;
     unsigned long ultimo_ms;
@@ -132,13 +135,16 @@ struct Zumbador {
 };
 
 // ------------ Funciones inicializacion ------------
-void setup_boton(struct Boton& b, byte pin) {
+void setup_boton(struct Boton& b, byte pin) 
+{
     b.pin = pin;
     b.estado = LOW;
     b.cambio_ms = 0;
     pinMode(b.pin, INPUT);
 }
-void setup_zumbador(struct Zumbador& z, byte pin) {
+
+void setup_zumbador(struct Zumbador& z, byte pin) 
+{
     z.pin = pin;
     z.estado = LOW;
     z.ultimo_ms = 0;
@@ -150,26 +156,36 @@ void setup_zumbador(struct Zumbador& z, byte pin) {
 // Comprobar cambio de estado y
 // la anulación del rebote del boton por sw
 //
-void loop_boton(struct Boton& b, unsigned long actual_ms) {
+void loop_boton(struct Boton& b, unsigned long actual_ms) 
+{
     int estado = digitalRead(b.pin);
-    if((estado != b.estado) && (actual_ms - b.cambio_ms >= UMBRAL_REBOTE)) {
+
+    if((estado != b.estado) && (actual_ms - b.cambio_ms >= UMBRAL_REBOTE)) 
+    {
         b.estado = estado; // cambiamos estado
         b.cambio_ms = actual_ms; // actualizamos el instante del cambio de estado
     }
 }
 
-void loop_zumbador(struct Zumbador& z, unsigned long actual_ms, const struct Boton& b){
-    if ((actual_ms == b.cambio_ms) && (b.estado == HIGH)){
+void loop_zumbador(struct Zumbador& z, unsigned long actual_ms, const struct Boton& b)
+{
+    if ((actual_ms == b.cambio_ms) && (b.estado == HIGH))
+    {
         z.estado = (z.estado == LOW ? HIGH : LOW); // cambios estado del zumbador
-        if (z.estado == LOW) { // si el nuevo estado es LOW reseteamos
+        if (z.estado == LOW) 
+        { // si el nuevo estado es LOW reseteamos
             noTone(z.pin);
             z.indice_nota = 0;
-        } else {
+        } 
+        else 
+        {
             z.ultimo_ms = actual_ms;
         }
     }
+    
     // Si estado HIGH y superamos el ciclo del zumbador, Cambiamos el sonido
-    if ((z.estado == HIGH) && (actual_ms - z.ultimo_ms >= duracion[z.indice_nota])) {
+    if ((z.estado == HIGH) && (actual_ms - z.ultimo_ms >= duracion[z.indice_nota])) 
+    {
         z.ultimo_ms = actual_ms;
         tone(z.pin, melodia[z.indice_nota]); // Emitir nota
         z.indice_nota = (z.indice_nota + 1) % (sizeof(melodia) / sizeof(melodia[0])); // avanzar a la siguiente nota
@@ -179,14 +195,23 @@ void loop_zumbador(struct Zumbador& z, unsigned long actual_ms, const struct Bot
 // ------------ setup & loop ------------
 struct Boton boton;
 struct Zumbador zumbador;
-void setup() {
-    if (Serial) Serial.begin(9600);
+
+void setup() 
+{
+    if (Serial)
+    {
+        Serial.begin(9600);
+    }
+
     setup_boton(boton, PinBoton);
     setup_zumbador(zumbador, PinZumbador);
 }
-void loop() {
+
+void loop() 
+{
     unsigned long actual_ms = millis();
     loop_boton(boton, actual_ms);
     loop_zumbador(zumbador, actual_ms, boton);
+
     delay(2);
 }
