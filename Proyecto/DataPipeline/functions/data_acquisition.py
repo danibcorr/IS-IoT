@@ -6,7 +6,7 @@ import pandas as pd
 
 # %% Funciones
 
-def adquisicion_datos(puerto, baudios, path_fichero):
+def adquisicion_datos(puerto, baudios, nombre_fichero):
     
     ser = serial.Serial(puerto, baudios) 
 
@@ -52,8 +52,9 @@ def adquisicion_datos(puerto, baudios, path_fichero):
         df = pd.DataFrame(data)
         
         # Guardar el DataFrame en un archivo CSV
-        df.to_csv(path_fichero, index = False)
-        print(f"Datos guardados en '{path_fichero}'")
+        file_path = "./dataset/" + nombre_fichero + ".csv"
+        df.to_csv(file_path, index = False)
+        print(f"Datos guardados en '{file_path}'")
         
         # Cerramos el puerto serie
         ser.close()  
