@@ -44,11 +44,14 @@ if __name__ == "__main__":
     baudios = st.number_input('Introduce los baudios:')
     nombre_fichero = st.text_input('Introduce el nombre del fichero:')
     
+    # Conversion path
+    file_path = "./dataset/" + nombre_fichero + ".csv"
+
     # Crea un botón para que el usuario elija cuando empezar a realizar la adquisición de datos
     start_button = st.button('Comenzar la adquisición de datos')
 
     # Si el usuario ha introducido un puerto y un directorio de archivo, llama a las funciones adquisicion_datos y plot_data
     if puerto and nombre_fichero and start_button:
 
-        adquisicion_datos(puerto = puerto, baudios = baudios, nombre_fichero = nombre_fichero)
+        adquisicion_datos(puerto = puerto, baudios = baudios, file_path = file_path)
         plot_data(file_path)
