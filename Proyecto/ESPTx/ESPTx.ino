@@ -1,8 +1,19 @@
+// Librerias
 #include <BluetoothSerial.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include <DHT.h>
+
+// Definición de pines
+#define DHTTYPE DHT11
+#define LDRPIN 32
+#define DHTPIN 33
+#define BUTTON_PIN 23
+#define BUZZERPIN 14
+#define LED_RED 5
+#define LED_YELLOW 21
 
 // Comprobación de si Bluetooth está habilitado en la configuración
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
@@ -21,15 +32,6 @@ BluetoothSerial SerialBT;
 String slaveName = "HC06_MEGARx";
 String masterName = "ESP32Tx";
 
-#include <DHT.h>
-
-// Definición de pines
-#define DHTPIN 16
-#define DHTTYPE DHT11
-#define BUTTON_PIN 17
-#define LED_RED 4
-#define LED_GREEN 2
-
 // Inicialización del sensor DHT
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -37,17 +39,66 @@ DHT dht(DHTPIN, DHTTYPE);
 volatile bool transmitData = true;
 
 // Configuracion para antirrebote via Software en combinacion con Pull-Up interno
-unsigned long ultimoTiempoPulsado = 0;  // La última vez que el botón fue pulsado
-unsigned long tiempoDebounce = 200;     // Tiempo de debounce en milisegundos
+// La última vez que el botón fue pulsado
+unsigned long ultimoTiempoPulsado = 0;
+
+// Tiempo de debounce en milisegundos  
+unsigned long tiempoDebounce = 200; 
+
+// Variables para la gestión de reintentos
+const int RETRY_INTERVAL = 2000;
+bool isConnected = false;
+const int num_intentos = 3;
+
+bool connectToSlave(const String &slaveName) 
+{
+    // Intenta conectar al dispositivo esclavo
+    bool connected = SerialBT.connect(slaveName);
+    Serial.printf("Conectando al dispositivo esclavo Bluetooth llamado \"%s\"\n", slaveName.c_str());
+    
+    int retryCount = 0;
+
+    // Verifica si la conexión se realizó correctamente
+    while (!connected && retryCount < num_intentos) 
+    {
+        // Si la conexión falla, imprime un mensaje de error
+        Serial.println("Error al conectar. Asegúrese de que el dispositivo remoto esté disponible y dentro del alcance.");
+
+        // Espera antes de volver a intentar la conexión
+        delay(RETRY_INTERVAL);
+
+        // Intenta conectar de nuevo
+        connected = SerialBT.connect(slaveName);
+
+        // Aumentamos el numero de intentos
+        retryCount++;
+    }
+
+    if (connected) 
+    {
+        Serial.println("¡Conectado exitosamente al esclavo!");
+    }
+    else
+    {
+        Serial.println("No se pudo conectar al esclavo...");
+    }
+
+    return connected;
+}
 
 // Función de interrupción para el botón
 void IRAM_ATTR handleButtonInterrupt()
 {
     if ((millis() - ultimoTiempoPulsado) > tiempoDebounce) 
     {
-        transmitData = !transmitData; // Invierte el estado de la transmisión de datos
-        digitalWrite(LED_RED, !transmitData); // Apaga o enciende el LED rojo dependiendo del estado de la transmisión
-        digitalWrite(LED_GREEN, LOW); // Apaga el LED verde
+        // Invierte el estado de la transmisión de datos
+        transmitData = !transmitData;       
+
+        // Apaga o enciende el LED rojo dependiendo del estado de la transmisión    
+        digitalWrite(LED_RED, !transmitData);  
+
+        // Apaga el LED amarillo 
+        digitalWrite(LED_YELLOW, LOW);           
 
         if (transmitData == true)
         {
@@ -67,34 +118,36 @@ void IRAM_ATTR handleButtonInterrupt()
 void setup()
 {
     // Inicialización del puerto serie para la comunicación serial
-    Serial.begin(115200);
+    Serial.begin(9600);
 
     // Inicialización del dispositivo Bluetooth con el nombre "ESP32test"
     SerialBT.begin(masterName, true);
-    Serial.printf("The device \"%s\" started in master mode, make sure slave BT device is on!\n", masterName.c_str());
+    Serial.printf("El dispositivo \"%s\" arrancó en modo maestro, ¡asegúrese de que el dispositivo BT esclavo está encendido!\n", masterName.c_str());
 
     // Configuracion Bluetooth esclavo HC-06
-    SerialBT.setPin("1111"); // Pin acceso HC-06
-    Serial.println("Using PIN");
-    bool connected = SerialBT.connect(slaveName);
-    Serial.printf("Connecting to slave BT device named \"%s\"\n", slaveName.c_str());
+    SerialBT.setPin("1111");            // Pin acceso HC-06
+    Serial.println("Utilizando PIN");
 
-    if(connected) 
+    // Intenta conectar al dispositivo esclavo
+    if (!connectToSlave(slaveName)) 
     {
-      Serial.println("Connected Successfully to slave!");
-    } 
-    else 
-    {
-      while(!SerialBT.connected(10000)) 
-      {
-        Serial.println("Failed to connect. Make sure remote device is available and in range, then restart app.");
-      }
+        Serial.println("No se pudo conectar al esclavo...");
     }
 
-    // Configuración de pines
-    pinMode(BUTTON_PIN, INPUT_PULLUP); // Configura el pin del botón como entrada con resistencia de pull-up
-    pinMode(LED_RED, OUTPUT); // Configura el pin del LED rojo como salida
-    pinMode(LED_GREEN, OUTPUT); // Configura el pin del LED verde como salida
+    // Configura el pin del botón como entrada con resistencia de pull-up   
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+    // Configura el pin del LED rojo como salida  
+    pinMode(LED_RED, OUTPUT);
+
+    // Configura el pin del LED amarillo como salida           
+    pinMode(LED_YELLOW, OUTPUT);
+
+    // Configura el pin del buzzer               
+    pinMode(BUZZERPIN, OUTPUT);
+
+    // Configura el pin del LDR         
+    pinMode(LDRPIN, INPUT);             
 
     // Asocia la función de interrupción al pin del botón
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonInterrupt, FALLING);
@@ -105,29 +158,64 @@ void setup()
 
 void loop()
 {
-    // Bucle principal
-
-    if (transmitData)
+    // Intenta reconectar si la conexión se perdió
+    if (!SerialBT.connected()) 
     {
-        // Si se va a transmitir datos
+        Serial.println("¡La conexión con el dispositivo esclavo se perdió! Intentando reconectar...");
 
-        // Lee la humedad y la temperatura del sensor DHT
-        float humidity = dht.readHumidity();
-        float temperature = dht.readTemperature();
+        digitalWrite(LED_YELLOW, LOW);
+        digitalWrite(LED_RED, HIGH);  
 
-        // Imprime los datos por el monitor serie
-        Serial.print("Humidity: ");
-        Serial.print(humidity);
-        Serial.print("% Temperature: ");
-        Serial.print(temperature);
-        Serial.println("°C");
+        if (!connectToSlave(slaveName)) 
+        {
+            Serial.println("No se pudo reconectar al esclavo...");
 
-        // Transmite los datos por Bluetooth
-        SerialBT.println("Humedad: " + String(humidity) + "% Temperatura: " + String(temperature) + "°C");
+            // Espera un tiempo antes de intentar reconectar nuevamente
+            delay(RETRY_INTERVAL); 
 
-        // Alterna el estado del LED verde
-        digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
+            // Sal del loop para evitar el resto del código
+            return; 
+        }
     }
 
-    delay(5000); // Espera 5 segundos
+    // Si la conexión está activa, procede con la transmisión de datos
+    if (transmitData)
+    {
+        digitalWrite(LED_RED, LOW);
+
+        // Leer la humedad y la temperatura del sensor DHT
+        float humedad = dht.readHumidity();
+        float temperatura = dht.readTemperature();
+
+        // Leer el valor de la LDR
+        float luminosidad = analogRead(LDRPIN);
+
+        if (!isnan(humedad) && !isnan(temperatura) && !isnan(luminosidad)) 
+        {
+            // Imprime los datos por el monitor serie
+            Serial.print("Humedad: ");
+            Serial.print(humedad);
+            Serial.print("%, Temperatura: ");
+            Serial.print(temperatura);
+            Serial.print("°C, Luminosidad: ");
+            Serial.println(luminosidad);
+
+            // Transmite los datos por Bluetooth
+            SerialBT.print(humedad);
+            SerialBT.print(",");
+            SerialBT.print(temperatura);
+            SerialBT.print(",");
+            SerialBT.println(luminosidad);
+
+            // Alterna el estado del LED amarillo
+            digitalWrite(LED_YELLOW, !digitalRead(LED_YELLOW));
+        }
+        else
+        {
+            Serial.println("Error al leer los sensores.");
+        }
+    }
+
+    // Espera 5 segundos
+    delay(5000); 
 }
