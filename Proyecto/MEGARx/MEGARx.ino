@@ -18,6 +18,22 @@ void loop()
         // Lee la cadena de datos hasta que se encuentre un salto de línea
         data = Serial1.readStringUntil('\n'); 
 
+        // Elimina los espacios en blanco al principio y al final de la cadena
+        data.trim();
+
+        // Si la línea es "Comunicacion cortada", terminar la adquisición de datos
+        if (data == "Comunicacion cortada") 
+        {
+            Serial.println("Comunicacion cortada");
+            return;
+        }
+        else if (data == "Comunicacion activada")
+        {
+            // De esta forma no se mostraran por el puerto serie valores 0
+            // de la adquisición de los datos, le estamos dando un margen
+            return;
+        }
+
         // Encuentra la posición de la primera coma
         int firstCommaIndex = data.indexOf(',');  
 
@@ -38,3 +54,4 @@ void loop()
         Serial.println(luminosidad);
     }
 }
+
