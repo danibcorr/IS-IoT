@@ -17,12 +17,12 @@ Este sistema de monitorización simula un entorno de invernadero, utilizando Ard
 
 ## 📊 Características
 
-- Recopilación de datos en tiempo real
-- Almacenamiento de datos en formato CSV
-- Visualización de datos mediante gráficos interactivos
-- Cálculo de promedios de parámetros ambientales
-- Sistema de alertas para condiciones fuera de rango
-- Recomendaciones para el cultivo basadas en las condiciones ambientales
+- Recopilación de datos en tiempo real.
+- Almacenamiento de datos en formato CSV.
+- Visualización de datos mediante gráficos interactivos.
+- Cálculo de promedios de parámetros ambientales.
+- Sistema de alertas para condiciones fuera de rango.
+- Recomendaciones para el cultivo basadas en las condiciones ambientales.
 
 ## 👥 Autores
 
